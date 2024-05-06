@@ -7,12 +7,14 @@
 
     <groupId>io.github.mikluko</groupId>
     <artifactId>docker-saxon</artifactId>
-    <version>0.0</version>
+    <version>0.2</version>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <docker.image.prefix>mikluko</docker.image.prefix>
+        <docker.image.name>saxon-he</docker.image.name>
     </properties>
 
     <dependencies>
@@ -39,36 +41,78 @@
         </dependency>
     </dependencies>
 
+    <distributionManagement>
+        <repository>
+            <id>docker.io</id>
+            <name>Docker Hub</name>
+            <url>https://index.docker.io/v1/</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
-                <version>0.43.1</version>
+                <version>0.44.0</version>
                 <configuration>
                     <images>
                         <image>
-                            <name>mikluko/${project.artifactId}-he</name>
+                            <name>${docker.image.prefix}/${docker.image.name}</name>
                             <build>
-                                <contextDir>${project.basedir}</contextDir>
-                                <dockerFileDir>${project.basedir}</dockerFileDir>
+                                <from>openjdk:23-slim</from>
+                                <assemblies>
+                                    <assembly>
+                                        <name>entrypoint</name>
+                                        <descriptorRef>artifact</descriptorRef>
+                                        <targetDir>/entrypoint</targetDir>
+                                    </assembly>
+                                    <assembly>
+                                        <name>dependencies</name>
+                                        <descriptorRef>dependencies</descriptorRef>
+                                        <targetDir>/entrypoint/lib</targetDir>
+                                    </assembly>
+                                </assemblies>
+                                <entryPoint>
+                                    <exec>
+                                        <arg>java</arg>
+                                        <arg>-jar</arg>
+                                        <arg>/entrypoint/${project.name}-${project.version}.jar</arg>
+                                    </exec>
+                                </entryPoint>
+                                <tags>
+                                    <tag>${project.version}</tag>
+                                </tags>
+                                <buildx>
+                                    <platforms>
+                                        <platform>linux/amd64</platform>
+                                        <platform>linux/arm64</platform>
+                                    </platforms>
+                                </buildx>
                             </build>
-                            <tags>
-                                <tag>${project.version}</tag>
-                                <tag>latest</tag>
-                            </tags>
-                            <arguments>
-                                <VERSION>${project.version}</VERSION>
-                            </arguments>
                         </image>
                     </images>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>docker-build</id>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.3.1</version>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-javadoc-plugin</artifactId>-->
+<!--                <version>3.3.1</version>-->
+<!--            </plugin>-->
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-surefire-plugin</artifactId>-->
+<!--                <version>2.22.2</version>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -76,37 +120,17 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.2.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
                 <configuration>
                     <archive>
                         <manifest>
+                            <addClasspath>true</addClasspath>
                             <mainClass>io.github.mikluko.Entrypoint</mainClass>
+                            <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
                     </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>make-fat-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
